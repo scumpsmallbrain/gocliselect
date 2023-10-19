@@ -2,22 +2,12 @@ package gocliselect
 
 import (
 	"fmt"
-	"bufio"
-	"os"
+
+	kb "atomicgo.dev/keyboard"
+	"atomicgo.dev/keyboard/keys"
 	col "github.com/gookit/color"
-	"golang.org/x/term"
-	"log"
 )
 
-// Raw input keycodes
-var up byte = 65
-var down byte = 66
-var escape byte = 27
-var enter byte = 13
-var keys = map[byte]bool {
-	up: true,
-	down: true,
-}
 
 type Menu struct {
 	Prompt  	string
@@ -72,9 +62,7 @@ func (m *Menu) renderMenuItems(redraw bool) {
 		menuItemText := menuItem.Text
 		cursor := "  "
 		if index == m.CursorPos {
-			// cursor = goterm.Color("> ", goterm.YELLOW)
 			cursor = col.Yellow.Sprint("> ")
-			// menuItemText = goterm.Color(menuItemText, goterm.YELLOW)
 			menuItemText = col.Yellow.Sprint(menuItemText)
 		}
 
@@ -90,7 +78,6 @@ func (m *Menu) Display() string {
 		fmt.Printf("\033[?25h")
 	}()
 
-	// fmt.Printf("%s\n", goterm.Color(goterm.Bold(m.Prompt) + ":", goterm.CYAN))
 	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt) + ":")
 
 	m.renderMenuItems(false)
@@ -98,51 +85,25 @@ func (m *Menu) Display() string {
 	// Turn the terminal cursor off
 	fmt.Printf("\033[?25l")
 
-	for {
-		keyCode := getInput()
-		if keyCode == escape {
-			return ""
-		} else if keyCode == enter {
-			menuItem := m.MenuItems[m.CursorPos]
-			fmt.Println("\r")
-			return menuItem.ID
-		} else if keyCode == up {
+	
+	var menuItem *MenuItem;
+	escaped := false
+	kb.Listen(func(key keys.Key) (stop bool, err error) {
+		if key.Code == keys.Escape {
+			escaped = true
+			return true, nil // Stop listener by returning true on Ctrl+C
+		} else if key.Code == keys.Enter {
+			menuItem = m.MenuItems[m.CursorPos]
+			return true, nil
+		} else if key.Code == keys.Up {
 			m.CursorPos = (m.CursorPos + len(m.MenuItems) - 1) % len(m.MenuItems)
 			m.renderMenuItems(true)
-		} else if keyCode == down {
+		} else if key.Code == keys.Down {
 			m.CursorPos = (m.CursorPos + 1) % len(m.MenuItems)
 			m.renderMenuItems(true)
 		}
-	}
-}
-
-// getInput will read raw input from the terminal
-// It returns the raw ASCII value inputted
-func getInput() byte {
-	state, err := term.MakeRaw(int(os.Stdin.Fd()))
-    if err != nil {
-        log.Fatalln("setting stdin to raw:", err)
-    }
-    defer func() {
-        if err := term.Restore(int(os.Stdin.Fd()), state); err != nil {
-            log.Println("warning, failed to restore terminal:", err)
-        }
-    }()
-	var read int
-	in := bufio.NewReader(os.Stdin)
-	readBytes := make([]byte, 3)
-	read, err = in.Read(readBytes)
-	// Arrow keys are prefixed with the ANSI escape code which take up the first two bytes.
-	// The third byte is the key specific value we are looking for.
-	// For example the left arrow key is '<esc>[A' while the right is '<esc>[C'
-	// See: https://en.wikipedia.org/wiki/ANSI_escape_code
-	if read == 3 {
-		if _, ok := keys[readBytes[2]]; ok {
-			return readBytes[2]
-		}
-	} else {
-		return readBytes[0]
-	}
-
-	return 0
+		return false, nil // Return false to continue listening
+	})
+	if escaped { return "" }
+	return menuItem.ID
 }
