@@ -70,6 +70,13 @@ func (m *Menu) renderMenuItems(redraw bool) {
 	}
 }
 
+func (m *Menu) renderFinalChoice() {
+	fmt.Printf("\r")
+	fmt.Printf("\033[%dA\033E\033[0J", len(m.MenuItems))
+	col.Cyan.Printf("%s", col.Bold.Sprint(m.Prompt + ":"))
+	col.Yellow.Printf(" > %s\r\n", m.MenuItems[m.CursorPos].Text)
+}
+
 // Display will display the current menu options and awaits user selection
 // It returns the users selected choice
 func (m *Menu) Display() string {
@@ -78,7 +85,7 @@ func (m *Menu) Display() string {
 		fmt.Printf("\033[?25h")
 	}()
 
-	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt) + ":")
+	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt + ":"))
 
 	m.renderMenuItems(false)
 
@@ -94,6 +101,7 @@ func (m *Menu) Display() string {
 			return true, nil // Stop listener by returning true on Ctrl+C
 		} else if key.Code == keys.Enter {
 			menuItem = m.MenuItems[m.CursorPos]
+			m.renderFinalChoice()
 			return true, nil
 		} else if key.Code == keys.Up {
 			m.CursorPos = (m.CursorPos + len(m.MenuItems) - 1) % len(m.MenuItems)
