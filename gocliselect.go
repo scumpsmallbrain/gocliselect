@@ -2,8 +2,10 @@ package gocliselect
 
 import (
 	"fmt"
-	"github.com/buger/goterm"
-	"github.com/pkg/term"
+	"bufio"
+	"os"
+	col "github.com/gookit/color"
+	"golang.org/x/term"
 	"log"
 )
 
@@ -70,8 +72,10 @@ func (m *Menu) renderMenuItems(redraw bool) {
 		menuItemText := menuItem.Text
 		cursor := "  "
 		if index == m.CursorPos {
-			cursor = goterm.Color("> ", goterm.YELLOW)
-			menuItemText = goterm.Color(menuItemText, goterm.YELLOW)
+			// cursor = goterm.Color("> ", goterm.YELLOW)
+			cursor = col.Yellow.Sprint("> ")
+			// menuItemText = goterm.Color(menuItemText, goterm.YELLOW)
+			menuItemText = col.Yellow.Sprint(menuItemText)
 		}
 
 		fmt.Printf("\r%s %s%s", cursor, menuItemText, newline)
@@ -86,7 +90,8 @@ func (m *Menu) Display() string {
 		fmt.Printf("\033[?25h")
 	}()
 
-	fmt.Printf("%s\n", goterm.Color(goterm.Bold(m.Prompt) + ":", goterm.CYAN))
+	// fmt.Printf("%s\n", goterm.Color(goterm.Bold(m.Prompt) + ":", goterm.CYAN))
+	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt) + ":")
 
 	m.renderMenuItems(false)
 
@@ -114,20 +119,19 @@ func (m *Menu) Display() string {
 // getInput will read raw input from the terminal
 // It returns the raw ASCII value inputted
 func getInput() byte {
-	t, _ := term.Open("/dev/tty")
-
-	err := term.RawMode(t)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	state, err := term.MakeRaw(int(os.Stdin.Fd()))
+    if err != nil {
+        log.Fatalln("setting stdin to raw:", err)
+    }
+    defer func() {
+        if err := term.Restore(int(os.Stdin.Fd()), state); err != nil {
+            log.Println("warning, failed to restore terminal:", err)
+        }
+    }()
 	var read int
+	in := bufio.NewReader(os.Stdin)
 	readBytes := make([]byte, 3)
-	read, err = t.Read(readBytes)
-
-	t.Restore()
-	t.Close()
-
+	read, err = in.Read(readBytes)
 	// Arrow keys are prefixed with the ANSI escape code which take up the first two bytes.
 	// The third byte is the key specific value we are looking for.
 	// For example the left arrow key is '<esc>[A' while the right is '<esc>[C'
