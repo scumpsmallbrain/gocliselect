@@ -85,7 +85,7 @@ func (m *Menu) Display() string {
 		fmt.Printf("\033[?25h")
 	}()
 
-	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt + ":"))
+	col.Cyan.Printf("%s\n", col.Bold.Sprint(m.Prompt))
 
 	m.renderMenuItems(false)
 
